@@ -1,0 +1,7 @@
+.pth
+*.pth
+*.pt
+*.h5
+data/
+models/
+*.mat
