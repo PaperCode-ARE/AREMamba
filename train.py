@@ -11,10 +11,8 @@ import numpy as np
 import os
 from sklearn.metrics import precision_recall_fscore_support
 
-# 设备配置
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# ==================== 评估函数 ====================
 
 def calculate_snr(clean, denoised):
     signal_power = torch.var(clean)
@@ -59,11 +57,9 @@ def calculate_multi_metrics(conf_mat):
     }
 
 
-# ==================== 训练函数 ====================
-
 def train_enhanced_model(model, train_loader, val_loader, optimizer, scheduler,
                          criterion, max_epochs, patience, snr):
-    """训练增强的双域Mamba模型"""
+
     best_val_loss = float('inf')
     best_val_metrics = {
         'acc': 0.0, 'f1': 0.0, 'snr': 0.0, 'cc': 0.0, 'mse': float('inf')

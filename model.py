@@ -8,10 +8,8 @@ import torch.nn.functional as F
 import math
 from mamba_ssm import Mamba
 
-# ==================== Mamba模型架构 ====================
 
 class StdPool(nn.Module):
-    """标准差池化层"""
 
     def __init__(self):
         super().__init__()
@@ -24,7 +22,6 @@ class StdPool(nn.Module):
 
 
 class ChannelAttention(nn.Module):
-    """通道注意力模块"""
 
     def __init__(self, channels, reduction=8):
         super().__init__()
@@ -56,7 +53,6 @@ class ChannelAttention(nn.Module):
 
 
 class TimeOnlyMambaBlock(nn.Module):
-    """仅使用时域Mamba的块"""
 
     def __init__(self, d_model=128, d_state=16, d_conv=4, expand=2, dropout=0.1):
         super().__init__()
@@ -83,7 +79,6 @@ class TimeOnlyMambaBlock(nn.Module):
 
 
 class EnhancedFreqFeature(nn.Module):
-    """增强的频域特征提取"""
 
     def __init__(self, in_channels=32, d_model=128):
         super().__init__()
@@ -160,7 +155,6 @@ class EnhancedFreqFeature(nn.Module):
 
 
 class EnhancedDualDomainMambaBlock(nn.Module):
-    """增强的双域Mamba块"""
 
     def __init__(self, d_model=128, d_state=16, d_conv=4, expand=2, dropout=0.1):
         super().__init__()
@@ -204,11 +198,10 @@ class EnhancedDualDomainMambaBlock(nn.Module):
 
 
 class DenoisedSignalFeatureExtractor(nn.Module):
-    """从去噪后的信号提取特征 - 消融掉多尺度"""
 
     def __init__(self, in_channels=32, d_model=128, num_mamba_layers=2):
         super().__init__()
-        # 使用单尺度卷积替代多尺度
+
         self.single_scale_proj = nn.Sequential(
             nn.Conv1d(in_channels, d_model, kernel_size=7, padding=3),
             nn.BatchNorm1d(d_model),
@@ -236,11 +229,10 @@ class DenoisedSignalFeatureExtractor(nn.Module):
 
     def forward(self, x):
         B, C, L = x.shape
-        # 单尺度投影
-        time_feat = self.single_scale_proj(x)  # (B, d_model, L)
-        time_feat = time_feat.transpose(1, 2)  # (B, L, d_model)
 
-        # 添加位置编码
+        time_feat = self.single_scale_proj(x)
+        time_feat = time_feat.transpose(1, 2)
+
         if L == 128:
             time_feat = time_feat + self.pos_encoding[:, :L, :]
         else:
@@ -249,11 +241,9 @@ class DenoisedSignalFeatureExtractor(nn.Module):
             ).transpose(1, 2)
             time_feat = time_feat + pos_enc
 
-        # Mamba块
         for block in self.mamba_blocks:
             time_feat = block(time_feat)
 
-        # 特征提取
         time_feat_t = time_feat.transpose(1, 2)
         time_feat_attended = self.channel_attention(time_feat_t)
         time_feat_enhanced = self.att_enhance(time_feat_attended) + time_feat_attended
@@ -269,10 +259,7 @@ class DenoisedSignalFeatureExtractor(nn.Module):
         return time_pooled, global_feat, time_feat_enhanced
 
 
-# ==================== 消融实验模型：移除多尺度特征提取 ====================
-
 class NoMultiScaleDualDomainEncoder(nn.Module):
-    """移除多尺度的双域Mamba编码器"""
 
     def __init__(self, in_channels=32, length=128, d_model=128, num_layers=3):
         super().__init__()
@@ -280,7 +267,6 @@ class NoMultiScaleDualDomainEncoder(nn.Module):
         self.num_layers = num_layers
         self.length = length
 
-        # 使用单尺度卷积替代多尺度投影
         self.time_proj = nn.Sequential(
             nn.Conv1d(in_channels, d_model, kernel_size=7, padding=3),
             nn.BatchNorm1d(d_model),
@@ -301,9 +287,8 @@ class NoMultiScaleDualDomainEncoder(nn.Module):
 
     def forward(self, x):
         B, C, L = x.shape
-        # 单尺度时域投影
-        time_feat = self.time_proj(x)  # (B, d_model, L)
-        time_feat = time_feat.transpose(1, 2)  # (B, L, d_model)
+        time_feat = self.time_proj(x)
+        time_feat = time_feat.transpose(1, 2)
 
         if L == self.length:
             time_feat = time_feat + self.pos_encoding
@@ -328,7 +313,6 @@ class NoMultiScaleDualDomainEncoder(nn.Module):
 
 
 class EnhancedDualDomainJointModel(nn.Module):
-    """移除多尺度的联合去噪分类模型"""
 
     def __init__(self, in_channels=32, length=128, num_classes=4):
         super().__init__()
@@ -338,7 +322,6 @@ class EnhancedDualDomainJointModel(nn.Module):
 
         self.input_norm = nn.BatchNorm1d(in_channels)
 
-        # 使用移除多尺度的编码器
         self.encoder_noisy = NoMultiScaleDualDomainEncoder(
             in_channels=in_channels, length=length, d_model=self.d_model, num_layers=3
         )
@@ -462,10 +445,7 @@ class EnhancedDualDomainJointModel(nn.Module):
         return denoised_out, logits
 
 
-# ==================== 损失函数 ====================
-
 class EnhancedLoss(nn.Module):
-    """增强的损失函数"""
 
     def __init__(self, denoise_weight=3.0, classify_weight=1.0, num_classes=4):
         super().__init__()

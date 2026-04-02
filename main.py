@@ -20,7 +20,6 @@ print(f"CUDA available: {torch.cuda.is_available()}")
 print(f"Current device: {device}")
 print(f"Device name: {torch.cuda.get_device_name(device) if torch.cuda.is_available() else 'CPU'}")
 
-# ==================== 训练参数 ====================
 WINDOW_SIZE = 128
 OVERLAP_RATIO = 0
 BATCH_SIZE = 32
@@ -32,10 +31,7 @@ TRAIN_VAL_SPLIT = 0.8
 # 数据保存路径
 DATA_DIR = "./"
 
-# ==================== 主函数 ====================
-
 def main():
-    """主函数 - 直接加载已生成的.mat文件进行训练"""
 
     snr = -3
 
@@ -50,13 +46,11 @@ def main():
     print("=" * 80)
     print(f"Data directory: {os.path.abspath(DATA_DIR)}")
 
-    # 检查数据目录是否存在
     if not os.path.exists(DATA_DIR):
         print(f"\nError: Data directory '{DATA_DIR}' does not exist!")
         print("Please run data preprocessing first to generate the .mat files.")
         return
 
-    # 构建数据文件路径
     data_file = os.path.join(DATA_DIR, f"eeg_data_snr_{snr}.mat")
 
 
@@ -64,10 +58,8 @@ def main():
     print(f"Training Enhanced Dual-Domain Mamba (SNR={snr}dB)")
     print(f"{'=' * 80}")
 
-    # 从保存的.mat文件加载数据集
     dataset = PreprocessedEEGDataset(data_file)
 
-    # 划分数据集
     train_size = int(TRAIN_VAL_SPLIT * len(dataset))
     val_size = len(dataset) - train_size
     train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
@@ -81,7 +73,6 @@ def main():
         val_dataset, batch_size=batch_size, num_workers=0, drop_last=True
     )
 
-    # 初始化模型
     model = EnhancedDualDomainJointModel(
         in_channels=32,
         length=128,
@@ -100,7 +91,6 @@ def main():
         num_classes=4
     ).to(device)
 
-    # 训练
     best_metrics = train_enhanced_model(
         model=model,
         train_loader=train_loader,
@@ -113,7 +103,6 @@ def main():
         snr=snr
     )
 
-    # 记录结果
     results.append({
         'SNR': snr,
         'Val_Accuracy': best_metrics['acc'],
@@ -124,7 +113,6 @@ def main():
         'Model': 'Preprocessed_Data_DualMamba'
     })
 
-    # 保存结果
     if results:
         df = pd.DataFrame(results)
         df.to_csv("preprocessed_data_training_results.csv", index=False)
